@@ -161,7 +161,7 @@ function Scanner() {
               onPointerCancel={onUp}
               onPointerLeave={onUp}
               onContextMenu={(e) => e.preventDefault()}
-              className="relative aspect-[3/4] w-[min(62vw,46vh)] overflow-hidden rounded-3xl border-2 border-primary/50 bg-card/40 shadow-[0_0_60px_var(--glow)]"
+              className="relative aspect-[3/4] w-[min(55vw,36vh)] overflow-hidden rounded-3xl border-2 border-primary/50 bg-card/40 shadow-[0_0_60px_var(--glow)]"
             >
               {phase === "idle" && <div className="pulse-ring pointer-events-none absolute inset-6 rounded-3xl border-2 border-primary" />}
               <HandSvg active={touching || phase !== "idle"} />
