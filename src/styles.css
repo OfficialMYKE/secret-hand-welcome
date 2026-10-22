@@ -168,3 +168,15 @@
 .pulse-ring { animation: pulse-ring 1.8s ease-out infinite; }
 @keyframes flicker { 0%,100%{opacity:1} 50%{opacity:.55} }
 .flicker { animation: flicker 1.2s steps(2) infinite; }
+.vignette { background: radial-gradient(ellipse at center, transparent 45%, oklch(0.05 0.01 220 / 0.85) 100%); }
+.scanlines-overlay { background: repeating-linear-gradient(0deg, oklch(0 0 0 / 0.18) 0 1px, transparent 1px 3px); mix-blend-mode: multiply; }
+@keyframes spin-slow { to { transform: rotate(360deg); } }
+.spin-slow { animation: spin-slow 18s linear infinite; }
+.spin-rev { animation: spin-slow 12s linear infinite reverse; }
+@keyframes flash { 0% { opacity: .9 } 100% { opacity: 0 } }
+.flash { animation: flash 1.2s ease-out forwards; }
+@keyframes rise { from { transform: translateY(16px); opacity: 0 } to { transform: none; opacity: 1 } }
+.rise { animation: rise .7s cubic-bezier(.2,.8,.2,1) both; }
+@keyframes glitch { 0%,100%{transform:none;clip-path:none} 20%{transform:translate(-3px,1px);clip-path:inset(10% 0 60% 0)} 40%{transform:translate(3px,-1px);clip-path:inset(50% 0 20% 0)} 60%{transform:none;clip-path:none} }
+.glitch { animation: glitch .5s steps(3) 2; }
+.hud-corner { position:absolute; width:28px; height:28px; border-color: var(--primary); }
