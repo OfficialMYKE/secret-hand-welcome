@@ -39,3 +39,20 @@ export function speak(text: string, onEnd?: () => void) {
     onEnd?.();
   }
 }
+
+let hum: { stop: () => void } | null = null;
+export function startHum() {
+  if (hum) return;
+  try {
+    const a = ac();
+    a.resume();
+    const g = a.createGain();
+    g.gain.value = 0.015;
+    const o1 = a.createOscillator(); o1.frequency.value = 55; o1.type = "sawtooth";
+    const o2 = a.createOscillator(); o2.frequency.value = 55.7; o2.type = "sine";
+    const f = a.createBiquadFilter(); f.type = "lowpass"; f.frequency.value = 220;
+    o1.connect(f); o2.connect(f); f.connect(g).connect(a.destination);
+    o1.start(); o2.start();
+    hum = { stop: () => { o1.stop(); o2.stop(); hum = null; } };
+  } catch {}
+}
