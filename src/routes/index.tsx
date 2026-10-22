@@ -89,7 +89,7 @@ function Scanner() {
     fx.vib([60, 60, 60]);
     const c = loadConfig();
     const list = c.participants;
-    const p = list.length ? list[c.nextIndex % list.length] : null;
+    const p = (list.length ? list[c.nextIndex % list.length] : null) ?? null;
     setWho(p);
     saveConfig({ ...c, nextIndex: list.length ? (c.nextIndex + 1) % list.length : 0 });
     setTimeout(() => {
@@ -174,7 +174,7 @@ function Scanner() {
                 <div className="h-full bg-primary shadow-[0_0_16px_var(--glow)] transition-[width] duration-100" style={{ width: `${progress * 100}%` }} />
               </div>
               <div className="mt-2 flex justify-between text-sm text-muted-foreground">
-                <span>{phase === "idle" ? "Esperando contacto…" : phase === "analyzing" ? "Consultando IA…" : LOGS[logIdx]}</span>
+                <span>{phase === "idle" ? "Esperando contacto…" : phase === "analyzing" ? "Consultando IA…" : LOGS[logIdx] ?? ""}</span>
                 <span className="text-primary">{Math.round(progress * 100)}%</span>
               </div>
             </div>
