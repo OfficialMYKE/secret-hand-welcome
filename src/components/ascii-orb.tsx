@@ -1,11 +1,12 @@
-// @ts-nocheck
-
 import * as React from "react";
 
 export type AsciiOrbState = "idle" | "listening" | "thinking" | "speaking";
 export type AsciiOrbCharset = "classic" | "dense" | "binary";
 
-export interface AsciiOrbProps extends Omit<React.HTMLAttributes<HTMLDivElement>, "children" | "color"> {
+export interface AsciiOrbProps extends Omit<
+  React.HTMLAttributes<HTMLDivElement>,
+  "children" | "color"
+> {
   /** What the assistant is doing right now. */
   state?: AsciiOrbState;
   /**
@@ -68,7 +69,9 @@ export function createAudioLevel(source: MediaStream | HTMLMediaElement, ctx?: A
   analyser.fftSize = 1024;
   const buf = new Float32Array(analyser.fftSize);
   const node =
-    source instanceof MediaStream ? ac.createMediaStreamSource(source) : ac.createMediaElementSource(source);
+    source instanceof MediaStream
+      ? ac.createMediaStreamSource(source)
+      : ac.createMediaElementSource(source);
   node.connect(analyser);
   if (!(source instanceof MediaStream)) analyser.connect(ac.destination);
   if (ac.state === "suspended") void ac.resume();
@@ -76,14 +79,19 @@ export function createAudioLevel(source: MediaStream | HTMLMediaElement, ctx?: A
     get: () => {
       analyser.getFloatTimeDomainData(buf);
       let s = 0;
-      for (let i = 0; i < buf.length; i++) s += buf[i] * buf[i];
+      for (let i = 0; i < buf.length; i++) {
+        const v = buf[i] ?? 0;
+        s += v * v;
+      }
       return clamp01((Math.sqrt(s / buf.length) - 0.008) * 7);
     },
     stop: () => {
       try {
         node.disconnect();
         analyser.disconnect();
-      } catch {}
+      } catch {
+        // optional canvas filter support
+      }
       if (!ctx) void ac.close();
     },
   };
@@ -129,15 +137,32 @@ export const AsciiOrb = React.forwardRef<HTMLDivElement, AsciiOrbProps>(function
       ctx.filter = "blur(2px)";
       blurOK = ctx.filter === "blur(2px)";
       ctx.filter = "none";
-    } catch {}
+    } catch {
+      // optional canvas filter support
+    }
 
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)");
     const W = TARGETS[props.current.state].slice();
-    let w = 1, h = 1, dpr = 1, cw = 6, ch = 12, fontKey = "";
+    let w = 1,
+      h = 1,
+      dpr = 1,
+      cw = 6,
+      ch = 12,
+      fontKey = "";
     let isDark = false;
     let lvl = 0;
-    let phIn = 0, phOut = 0, spin = 0, breath = 0, wob = 0, scan = 0, light = 0, clock = 0;
-    let last = 0, raf = 0, visible = true, checkDark = 0;
+    let phIn = 0,
+      phOut = 0,
+      spin = 0,
+      breath = 0,
+      wob = 0,
+      scan = 0,
+      light = 0,
+      clock = 0;
+    let last = 0,
+      raf = 0,
+      visible = true,
+      checkDark = 0;
 
     const font = () => `${props.current.fontSize * dpr}px ${props.current.fontFamily}`;
     const measure = () => {
@@ -160,6 +185,7 @@ export const AsciiOrb = React.forwardRef<HTMLDivElement, AsciiOrbProps>(function
     const ro = new ResizeObserver(resize);
     ro.observe(root);
     const io = new IntersectionObserver(([e]) => {
+      if (!e) return;
       visible = e.isIntersecting;
       if (visible && !raf) {
         last = performance.now();
@@ -188,8 +214,8 @@ export const AsciiOrb = React.forwardRef<HTMLDivElement, AsciiOrbProps>(function
       // blend state weights so every switch is a smooth morph
       const T = TARGETS[p.state] ?? TARGETS.idle;
       const k = 1 - Math.exp(-(dt * 3.2) / ts);
-      for (let i = 0; i < W.length; i++) W[i] = ease(W[i], T[i], k);
-      const [bW, gW, inW, outW, scW, spW] = W;
+      for (let i = 0; i < W.length; i++) W[i] = ease(W[i] ?? 0, T[i] ?? 0, k);
+      const [bW = 0, gW = 0, inW = 0, outW = 0, scW = 0, spW = 0] = W;
 
       const raw = clamp01(typeof p.level === "function" ? p.level() : p.level || 0);
       lvl = ease(lvl, raw, raw > lvl ? 1 - Math.exp(-dt * 22) : 1 - Math.exp(-dt * 6));
@@ -204,15 +230,22 @@ export const AsciiOrb = React.forwardRef<HTMLDivElement, AsciiOrbProps>(function
       scan += dt * 0.55 * scW;
       light += dt * 0.12;
 
-      const chars = (CHARSETS as Record<string, string>)[p.charset] ?? (p.charset.length > 1 ? p.charset : CHARSETS.classic);
+      const chars =
+        (CHARSETS as Record<string, string>)[p.charset] ??
+        (p.charset.length > 1 ? p.charset : CHARSETS.classic);
       const nC = chars.length - 1;
       const scale = (1 + 0.032 * bW * Math.sin(breath)) * (1 + 0.075 * L);
       const R = Math.min(w, h) * 0.4 * scale;
 
-      let lx = Math.cos(light) * 0.45 - 0.2, ly = -0.5 + Math.sin(light) * 0.12, lz = 0.78;
+      let lx = Math.cos(light) * 0.45 - 0.2,
+        ly = -0.5 + Math.sin(light) * 0.12,
+        lz = 0.78;
       const ll = Math.hypot(lx, ly, lz);
-      lx /= ll; ly /= ll; lz /= ll;
-      const cs = Math.cos(spin * 2.2), sn = Math.sin(spin * 2.2);
+      lx /= ll;
+      ly /= ll;
+      lz /= ll;
+      const cs = Math.cos(spin * 2.2),
+        sn = Math.sin(spin * 2.2);
       const scanY = -1.25 + (scan % 2.5);
       const tick = Math.floor(clock * 12);
 
@@ -223,8 +256,10 @@ export const AsciiOrb = React.forwardRef<HTMLDivElement, AsciiOrbProps>(function
       octx!.textBaseline = "middle";
       octx!.fillStyle = p.color;
 
-      const cols = Math.floor(w / cw), rows = Math.floor(h / ch);
-      const ox = (w - cols * cw) / 2, oy = (h - rows * ch) / 2;
+      const cols = Math.floor(w / cw),
+        rows = Math.floor(h / ch);
+      const ox = (w - cols * cw) / 2,
+        oy = (h - rows * ch) / 2;
       const maxR = R * 1.06;
 
       for (let j = 0; j < rows; j++) {
@@ -232,20 +267,25 @@ export const AsciiOrb = React.forwardRef<HTMLDivElement, AsciiOrbProps>(function
         if (Math.abs(py) > maxR) continue;
         for (let i = 0; i < cols; i++) {
           const px = ox + (i + 0.5) * cw - w / 2;
-          let x = px / R, y = py / R;
+          let x = px / R,
+            y = py / R;
           const d = Math.hypot(x, y);
           if (d > 1.06) continue;
           const a = Math.atan2(y, x);
-          const edge = 1 + L * (0.026 * Math.sin(3 * a + wob) + 0.016 * Math.sin(5 * a - wob * 1.3));
+          const edge =
+            1 + L * (0.026 * Math.sin(3 * a + wob) + 0.016 * Math.sin(5 * a - wob * 1.3));
           if (d >= edge) continue;
-          x /= edge; y /= edge;
+          x /= edge;
+          y /= edge;
           const nz = Math.sqrt(Math.max(0, 1 - x * x - y * y));
 
           // diffuse light
           let b = 0.06 + 0.86 * Math.max(0, x * lx + y * ly + nz * lz);
           // slow surface texture that reads as rotation
-          const rx = x * cs + nz * sn, rz = -x * sn + nz * cs;
-          const lon = Math.atan2(rx, rz), lat = Math.asin(Math.max(-1, Math.min(1, y)));
+          const rx = x * cs + nz * sn,
+            rz = -x * sn + nz * cs;
+          const lon = Math.atan2(rx, rz),
+            lat = Math.asin(Math.max(-1, Math.min(1, y)));
           b += 0.06 * Math.sin(lon * 2 + Math.sin(lat * 2) * 1.2) * Math.cos(lat);
           // voice ripples: inward while listening, outward while speaking
           const dd = Math.acos(Math.min(1, nz));
@@ -261,8 +301,8 @@ export const AsciiOrb = React.forwardRef<HTMLDivElement, AsciiOrbProps>(function
           b = clamp01(b) * Math.min(1, nz * 2.2 + 0.15); // fade toward the limb, clean edge
           const idx = Math.round(b * nC);
           if (idx <= 0) continue;
-          let chr = chars[idx];
-          if (scr && hash(i, j, tick) % 100 < 55) chr = chars[1 + (hash(j, i, tick) % nC)];
+          let chr = chars[idx] ?? "";
+          if (scr && hash(i, j, tick) % 100 < 55) chr = chars[1 + (hash(j, i, tick) % nC)] ?? chr;
           octx!.globalAlpha = 0.28 + 0.72 * b;
           octx!.fillText(chr, (px + w / 2) * dpr, (py + h / 2) * dpr);
         }
