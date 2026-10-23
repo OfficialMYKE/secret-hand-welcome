@@ -180,26 +180,6 @@
 .text-glow-success {
   text-shadow: 0 0 24px oklch(0.82 0.2 150 / 0.6);
 }
-@keyframes scanline {
-  0% {
-    top: 0%;
-  }
-  50% {
-    top: 100%;
-  }
-  100% {
-    top: 0%;
-  }
-}
-.scanline {
-  position: absolute;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: var(--primary);
-  box-shadow: 0 0 24px 6px var(--glow);
-  animation: scanline 2.2s ease-in-out infinite;
-}
 @keyframes pulse-ring {
   0% {
     transform: scale(0.9);
@@ -415,15 +395,6 @@
     glitch 0.4s steps(3) 2 0.45s;
 }
 
-@keyframes march {
-  to {
-    stroke-dashoffset: -32;
-  }
-}
-.hand-march {
-  animation: march 1.3s linear infinite;
-}
-
 .spin-fast {
   animation: spin-slow 5s linear infinite;
 }
@@ -520,16 +491,28 @@
   .hold-fill,
   .shake,
   .kt,
-  .hand-march,
   .grain,
   .ambient,
   .alert-edge {
     animation: none !important;
   }
-  .scanline {
-    display: none;
-  }
   * {
     transition-duration: 0.01ms !important;
   }
+}
+
+/* realistic hand scan imagery */
+.hand-base {
+  opacity: 0.6;
+  filter: saturate(0.6) brightness(0.8);
+  transition:
+    opacity 0.6s,
+    filter 0.6s;
+}
+.hand-base.on {
+  opacity: 0.4;
+  filter: saturate(0.3) brightness(0.6);
+}
+.hand-lit {
+  filter: brightness(1.25) saturate(1.2) drop-shadow(0 0 8px var(--primary));
 }

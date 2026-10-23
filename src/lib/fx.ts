@@ -156,3 +156,29 @@ export function keepAwake() {
     // best effort
   }
 }
+
+/** Filtered noise sweep — sounds like a laser/optical sensor pass. */
+export function sweep(dur = 0.6, from = 400, to = 3200, vol = 0.04) {
+  try {
+    const a = ac();
+    const len = Math.floor(a.sampleRate * dur);
+    const buf = a.createBuffer(1, len, a.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+    const src = a.createBufferSource();
+    src.buffer = buf;
+    const f = a.createBiquadFilter();
+    f.type = "bandpass";
+    f.Q.value = 8;
+    f.frequency.setValueAtTime(from, a.currentTime);
+    f.frequency.exponentialRampToValueAtTime(to, a.currentTime + dur);
+    const g = a.createGain();
+    g.gain.setValueAtTime(0.0001, a.currentTime);
+    g.gain.exponentialRampToValueAtTime(vol, a.currentTime + dur * 0.3);
+    g.gain.exponentialRampToValueAtTime(0.0001, a.currentTime + dur);
+    src.connect(f).connect(g).connect(a.destination);
+    src.start();
+  } catch {
+    // best effort
+  }
+}

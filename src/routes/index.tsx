@@ -1,7 +1,8 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
+import handScan from "@/assets/hand-scan.png";
 import { AsciiOrb, type AsciiOrbState } from "@/components/ascii-orb";
-import { beep, keepAwake, speak, startHum, stopHum, vibrate } from "@/lib/fx";
+import { beep, keepAwake, speak, startHum, stopHum, sweep, vibrate } from "@/lib/fx";
 import {
   defaultConfig,
   fillTemplate,
@@ -90,11 +91,17 @@ function Decode({ text, speed = 26, per = 3 }: { text: string; speed?: number; p
 }
 
 function KineticText({ text, step = 24 }: { text: string; step?: number }) {
+  let n = 0;
   return (
     <>
-      {text.split("").map((ch, i) => (
-        <span key={`${i}-${ch}`} className="kt" style={{ animationDelay: `${i * step}ms` }}>
-          {ch === " " ? "\u00A0" : ch}
+      {text.split(" ").map((word, w) => (
+        <span key={`${w}-${word}`} className="inline-block whitespace-nowrap">
+          {word.split("").map((ch, i) => (
+            <span key={`${i}-${ch}`} className="kt" style={{ animationDelay: `${n++ * step}ms` }}>
+              {ch}
+            </span>
+          ))}
+          {"\u00A0"}
         </span>
       ))}
     </>
@@ -298,6 +305,7 @@ function Scanner() {
     setPhase("analyzing");
     setOrb("thinking");
     fx.vib([60, 60, 60]);
+    if (cfg.sound) sweep(1.2, 200, 4000, 0.05);
     const c = loadConfig();
     const list = c.participants;
     const p = (list.length ? list[c.nextIndex % list.length] : null) ?? null;
@@ -367,6 +375,7 @@ function Scanner() {
     const step = Math.floor(p * 24);
     if (step !== lastTick.current) {
       lastTick.current = step;
+      if (step % 6 === 0 && c.sound) sweep(0.5, 300 + step * 40, 2400 + step * 60, 0.03);
       fx.vib(12 + step);
       fx.beep(420 + step * 28, 0.035, "square", 0.025);
     }
@@ -661,14 +670,19 @@ function Scanner() {
           <section className="relative z-10 flex flex-1 flex-col items-center justify-center gap-4 px-6">
             {!granted ? (
               analyzing ? (
-                <AnalysisView analysis={analysis} stage={stage} systemName={cfg.systemName} />
+                <AnalysisView
+                  analysis={analysis}
+                  stage={stage}
+                  systemName={cfg.systemName}
+                  target={who}
+                />
               ) : (
                 <>
-                  <div className="flex items-center gap-5">
+                  <div className="flex flex-col items-center gap-2 text-center">
                     <AsciiOrb
                       state={orb}
-                      size="min(120px, 16vh)"
-                      fontSize={7}
+                      size="min(70px, 9vh)"
+                      fontSize={5}
                       glow={0.8}
                       color={denied || weak ? "oklch(0.65 0.22 25)" : "oklch(0.82 0.14 195)"}
                     />
@@ -679,7 +693,7 @@ function Scanner() {
                       <h1
                         key={`${phase}-${weak}`}
                         aria-label={titleText}
-                        className={`font-display text-2xl uppercase tracking-[0.15em] md:text-3xl ${
+                        className={`font-display text-2xl uppercase tracking-[0.15em] md:text-2xl ${
                           denied || weak ? "text-destructive" : "text-glow"
                         }`}
                       >
@@ -702,7 +716,7 @@ function Scanner() {
                       aria-valuemin={0}
                       aria-valuemax={100}
                       aria-valuenow={Math.round(progress * 100)}
-                      className="pointer-events-none absolute h-[min(76vw,62vh)] w-[min(76vw,62vh)]"
+                      className="pointer-events-none absolute h-[min(76vw,54vh)] w-[min(76vw,54vh)]"
                     >
                       {idle && (
                         <g className="spin-fast" style={{ transformOrigin: "100px 100px" }}>
@@ -773,7 +787,7 @@ function Scanner() {
                           }
                         }}
                         onContextMenu={(e) => e.preventDefault()}
-                        className={`relative aspect-[250/400] w-[min(46vw,40vh)] select-none overflow-hidden rounded-[2rem] border-2 bg-card/50 backdrop-blur-sm transition-all duration-500 ${
+                        className={`relative aspect-[250/400] w-[min(46vw,34vh)] select-none overflow-hidden rounded-[2rem] border-2 bg-card/50 backdrop-blur-sm transition-all duration-500 ${
                           denied
                             ? `shake border-destructive shadow-[0_0_60px_oklch(0.65_0.22_25/0.5)]`
                             : weak
@@ -791,12 +805,6 @@ function Scanner() {
                           <span key={scanId} aria-hidden="true" className="ripple" />
                         )}
                         <HandSvg active={active} progress={progress} touched={tips} />
-                        {scanning && (
-                          <div
-                            className="scanline"
-                            style={{ animationDuration: `${Math.max(0.5, 2.2 - progress * 1.5)}s` }}
-                          />
-                        )}
                         {weak && (
                           <div className="absolute inset-0 animate-pulse bg-destructive/10" />
                         )}
@@ -953,12 +961,34 @@ function AnalysisView({
   analysis,
   stage,
   systemName,
+  target,
 }: {
   analysis: number;
   stage: number;
   systemName: string;
+  target: Participant | null;
 }) {
   const pct = Math.round(analysis * 100);
+  const [cand, setCand] = useState({ id: "", name: "", score: 0 });
+  const locked = stage >= 2;
+  useEffect(() => {
+    if (locked) return;
+    const id = window.setInterval(() => {
+      setCand({
+        id: `#${Math.random().toString(36).slice(2, 8).toUpperCase()}`,
+        name: DECOYS[Math.floor(Math.random() * DECOYS.length)] ?? "",
+        score: 40 + Math.random() * 50,
+      });
+    }, 70);
+    return () => clearInterval(id);
+  }, [locked]);
+  const shown = locked
+    ? {
+        id: `#${(target?.id || "0000").toUpperCase()}`,
+        name: target?.name || "Agente",
+        score: 99.98,
+      }
+    : cand;
   return (
     <div className="absolute inset-0 flex flex-col items-center justify-center gap-6 bg-background/85 px-6 backdrop-blur-[3px]">
       <p className="rise font-display text-xs uppercase tracking-[0.5em] text-muted-foreground">
@@ -972,6 +1002,20 @@ function AnalysisView({
           glow={0.9}
           color="oklch(0.82 0.14 195)"
         />
+      </div>
+      <div
+        className={`w-[min(88vw,560px)] rounded-xl border bg-card/80 px-5 py-3 font-mono text-sm backdrop-blur transition-colors ${
+          locked ? "border-success/60 text-success" : "border-primary/30 text-muted-foreground"
+        }`}
+      >
+        <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.3em]">
+          <span>{locked ? "Coincidencia encontrada" : "Buscando en 48.213 registros"}</span>
+          <span>{shown.score.toFixed(2)}%</span>
+        </div>
+        <div className="mt-1 flex items-center justify-between font-display text-lg">
+          <span className={locked ? "text-glow-success" : ""}>{shown.name}</span>
+          <span className="text-xs">{shown.id}</span>
+        </div>
       </div>
       <div className="w-[min(88vw,560px)] space-y-2 rounded-xl border border-primary/30 bg-card/80 p-5 font-mono text-sm backdrop-blur">
         {ANALYZE.map((t, i) => {
@@ -1052,20 +1096,30 @@ function Info({ k, v }: { k: string; v: string }) {
   );
 }
 
+const DECOYS = [
+  "R. Valdés",
+  "M. Ortega",
+  "S. Ibarra",
+  "L. Ferrer",
+  "A. Navarro",
+  "C. Duarte",
+  "J. Robles",
+  "E. Salinas",
+  "P. Herrera",
+  "D. Molina",
+  "V. Cárdenas",
+  "N. Paredes",
+];
+
 const FINGERS = [
-  { key: "pul", label: "Pul", x: 55, y: 228 },
-  { key: "ind", label: "Índ", x: 108, y: 120 },
-  { key: "med", label: "Med", x: 137, y: 80 },
-  { key: "anu", label: "Anu", x: 167, y: 90 },
-  { key: "men", label: "Meñ", x: 196, y: 125 },
+  { key: "pul", label: "Pul", x: 219, y: 164 },
+  { key: "ind", label: "Índ", x: 160, y: 45 },
+  { key: "med", label: "Med", x: 113, y: 24 },
+  { key: "anu", label: "Anu", x: 73, y: 43 },
+  { key: "men", label: "Meñ", x: 29, y: 88 },
 ] as const;
 const FINGER_TONES = [523, 587, 659, 740, 831];
-const HIT_R = 26;
-
-const HAND_PATH =
-  "M95 380 C70 330 55 290 40 240 C32 215 52 200 68 220 L95 260 L95 110 C95 92 122 92 122 110 " +
-  "L122 220 L122 70 C122 50 152 50 152 70 L152 215 L152 80 C152 60 182 60 182 80 L182 220 " +
-  "L182 115 C182 97 210 97 210 115 L210 270 C210 330 190 360 175 380 Z";
+const HIT_R = 34;
 
 function HandSvg({
   active,
@@ -1076,45 +1130,74 @@ function HandSvg({
   progress: number;
   touched: boolean[];
 }) {
+  const reveal = 400 * (1 - progress);
   return (
     <svg
       viewBox="0 0 250 400"
-      className={`pointer-events-none absolute inset-0 m-auto h-[82%] w-[82%] transition-all duration-500 ${
-        active ? "text-primary" : "text-primary/60"
-      }`}
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="3"
-      strokeLinecap="round"
-      strokeLinejoin="round"
+      className="pointer-events-none absolute inset-0 m-auto h-[82%] w-[82%]"
       aria-hidden="true"
     >
-      <path
-        d={HAND_PATH}
-        className={active ? undefined : "hand-march"}
-        strokeDasharray={active ? "0" : "8 8"}
-        style={active ? { filter: "drop-shadow(0 0 6px var(--primary))" } : undefined}
-      />
-      {active &&
-        [150, 190, 230, 270, 310, 350].map((y) => (
-          <line key={y} x1="100" x2="200" y1={y} y2={y} opacity=".2" />
-        ))}
-      {FINGERS.map((f, i) => {
-        const lit = progress > (i + 1) / (FINGERS.length + 1);
-        const on = touched[i] === true || lit;
-        return (
-          <circle
-            key={f.key}
-            cx={f.x}
-            cy={f.y}
-            r={on ? 7 : 4}
-            fill={touched[i] ? "var(--success)" : lit ? "var(--primary)" : "none"}
-            opacity={on ? 1 : 0.4}
-            style={{
-              transition: "all .3s",
-              filter: on ? "drop-shadow(0 0 6px var(--primary))" : undefined,
-            }}
+      <defs>
+        <clipPath id="hand-reveal">
+          <rect x="0" y={reveal} width="250" height={400 - reveal} />
+        </clipPath>
+        <linearGradient id="hand-fade" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0.75" stopColor="#fff" />
+          <stop offset="1" stopColor="#000" />
+        </linearGradient>
+        <mask id="hand-mask">
+          <rect width="250" height="400" fill="url(#hand-fade)" />
+        </mask>
+      </defs>
+      <g mask="url(#hand-mask)">
+        <image
+          href={handScan}
+          width="250"
+          height="400"
+          className={`hand-base ${active ? "on" : ""}`}
+          preserveAspectRatio="xMidYMid slice"
+        />
+        {active && (
+          <image
+            href={handScan}
+            width="250"
+            height="400"
+            clipPath="url(#hand-reveal)"
+            className="hand-lit"
+            preserveAspectRatio="xMidYMid slice"
           />
+        )}
+      </g>
+      {active && progress < 1 && (
+        <line
+          x1="0"
+          x2="250"
+          y1={reveal}
+          y2={reveal}
+          stroke="var(--primary)"
+          strokeWidth="1.5"
+          style={{ filter: "drop-shadow(0 0 6px var(--primary))" }}
+        />
+      )}
+      {FINGERS.map((f, i) => {
+        const on = touched[i] === true;
+        return (
+          <g key={f.key} style={{ transition: "opacity .3s" }} opacity={on ? 1 : 0.35}>
+            <circle
+              cx={f.x}
+              cy={f.y}
+              r={on ? 16 : 13}
+              fill="none"
+              stroke={on ? "var(--success)" : "var(--primary)"}
+              strokeWidth="1"
+              strokeDasharray={on ? "0" : "3 3"}
+              style={{
+                transition: "all .3s",
+                filter: on ? "drop-shadow(0 0 5px var(--success))" : undefined,
+              }}
+            />
+            <circle cx={f.x} cy={f.y} r="1.6" fill={on ? "var(--success)" : "var(--primary)"} />
+          </g>
         );
       })}
     </svg>
